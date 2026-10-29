@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (first public release, unreleased)
+## 0.1.0 (2026-10-29, first public release)
 
 - **Monitoring:**
   - CPU, GPU and system temperatures.
