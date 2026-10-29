@@ -1,0 +1,13 @@
+# Build output
+/target/
+
+# Reports written by --status and the research tools when run from the repository folder
+/*.txt
+/report*
+
+# Editors and OS clutter
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini

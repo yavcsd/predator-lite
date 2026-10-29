@@ -1,0 +1,29 @@
+# Build, lint and test on every push and pull request. The unit tests run against a simulated
+# firmware, so no Acer hardware or administrator rights are needed.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Format
+        run: cargo fmt --check
+      - name: Test
+        run: cargo test
+      - name: Clippy
+        # The groups are also set in Cargo.toml; naming them here keeps CI strict on its own.
+        run: cargo clippy --all-targets -- -W clippy::perf -W clippy::pedantic -W clippy::style -W clippy::complexity -D warnings
+      - name: Build release
+        run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: predator-lite-exe
+          path: target/release/predator-lite.exe

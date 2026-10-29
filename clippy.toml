@@ -1,0 +1,2 @@
+# Product and feature names that clippy::doc_markdown would otherwise want in backticks.
+doc-valid-idents = ["PredatorSense", "NitroSense", "CoolBoost", "TurboBoost", "WinRing0", "PawnIO", "..", "DirectX", "NVIDIA"]

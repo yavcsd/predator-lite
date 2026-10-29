@@ -1,0 +1,37 @@
+# Pushing a tag like v0.1.0 builds predator-lite.zip (the exe, the setup scripts, README and
+# LICENSE) and attaches it to a GitHub release for that tag.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check the tag matches Cargo.toml
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "tag $env:GITHUB_REF_NAME does not match version $version" }
+      - name: Test
+        run: cargo test
+      - name: Build
+        run: cargo build --release
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist/predator-lite | Out-Null
+          Copy-Item target/release/predator-lite.exe, README.md, LICENSE dist/predator-lite/
+          Copy-Item tools dist/predator-lite/tools -Recurse
+          Compress-Archive -Path dist/predator-lite/* -DestinationPath predator-lite.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: predator-lite.zip
+          generate_release_notes: true

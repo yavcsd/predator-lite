@@ -1,0 +1,5 @@
+# Normalise line endings in the repository; PowerShell scripts keep CRLF so they open cleanly
+# in Windows PowerShell 5.1 and Notepad.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
