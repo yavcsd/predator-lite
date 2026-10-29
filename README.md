@@ -9,6 +9,18 @@ runtime.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-informational)
 
+> [!WARNING]
+> ## This project was developed with Claude Code
+>
+> Predator Lite was written with [Claude Code](https://claude.com/claude-code), Anthropic's AI
+> coding assistant. The code, the firmware research, the tests and this documentation were
+> produced with AI assistance. Everything was tested on one laptop, an Acer Predator Triton 500
+> (PT515-51), and only on that one.
+>
+> Predator Lite changes fan, power and firmware settings. Read the code if you want to be sure of
+> what it does, keep an eye on temperatures the first time you use it, and use it at your own
+> risk. As the [license](LICENSE) says, it comes with no warranty.
+
 <p align="center"><img src="docs/images/main-window.png" alt="Predator Lite main window" width="462"></p>
 
 > Predator Lite is an independent project. It is not made, endorsed or supported by Acer.
