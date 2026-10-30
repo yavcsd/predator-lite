@@ -1,12 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 (2026-10-30)
 
 - **Fixed:** the GPU mode box showed *Discrete only* at start while the laptop ran in Hybrid. The
   firmware reports Discrete after every start on the PT515-51, so the box now shows the mode
   Windows is running in, or the one chosen since Windows started. A switch is always written to
   the firmware, even when it already reports that mode.
 - `--status` reports the running GPU mode next to the firmware value.
+- **Docs:** on the PT515-51 a full shutdown turns the firmware's Win key lock back on (a
+  restart doesn't). Predator Lite turns it off again when it starts and after sleep; the user
+  guide now says so and points to starting it at logon.
 
 ## 0.1.0 (2026-10-29, first public release)
 

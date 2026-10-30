@@ -147,5 +147,6 @@ percentages saved before the duty calibration and the old "silent" / "quiet" mod
      **Predator Lite Eco**.
    - **Command line:** `powercfg /list` to find its GUID, then `powercfg /delete <GUID>`.
 
-Firmware settings (keyboard colors, GPU mode, Win key, …) stay as you last set them. They live
-in the laptop, not in Windows.
+Firmware settings (keyboard colors, GPU mode, …) stay as you last set them. They live in the
+laptop, not in Windows. The Win key is the exception: on the PT515-51 a full shutdown locks it
+again, until something turns it back on.

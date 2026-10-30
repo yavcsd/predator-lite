@@ -219,7 +219,9 @@ Lite. It then writes button events and decisions to `debug.log` in the same fold
 ### Common problems
 
 - **The Windows key does nothing.** The firmware's Win key lock is on. Check **Win key** in the
-  Keyboard section.
+  Keyboard section. On the PT515-51 the firmware turns the lock on after a full shutdown (a
+  restart keeps it off). Predator Lite turns it off again when it starts and after sleep, so
+  [start it at logon](installation.md#start-at-logon) to always have the key.
 - **"Access denied" or nothing works.** The app must run as administrator. Accept the UAC prompt,
   or use the [start at logon](installation.md#start-at-logon) task.
 - **Fans change back by themselves.** Another fan tool (PredatorSense, NitroSense, FanControl, …)
