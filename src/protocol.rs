@@ -494,6 +494,13 @@ pub fn running_gpu_mode<S: AsRef<str>>(adapter_ids: &[S]) -> GpuMode {
     }
 }
 
+/// GPU mode for the next start: the one chosen since Windows started (`pending`, a
+/// `GpuMode as u8`), or else the running one. The firmware's own value can't tell: on the
+/// PT515-51 it reads Discrete after every start, whichever mode is running.
+pub fn next_gpu_mode(running: GpuMode, pending: Option<u8>) -> GpuMode {
+    pending.and_then(GpuMode::from_u8).unwrap_or(running)
+}
+
 /// CoolBoost (`APGeAction` function 7): Acer's stronger Auto fan curve. PredatorSense reads it
 /// with GetFunction(0x207) and writes it with SetFunction(7 | on << 16)
 /// (`CommonFunction.get_coolboost_state` / `set_coolboost_state`).
@@ -1586,6 +1593,22 @@ mod tests {
         assert_eq!(running_gpu_mode(&["Pci\\Ven_8086&Dev_3E9B"]), GpuMode::Hybrid);
         let owned = vec![String::from("ROOT\\DISPLAY\\0000"), String::from("PCI\\VEN_8086&DEV_3E9B")];
         assert_eq!(running_gpu_mode(&owned), GpuMode::Hybrid);
+    }
+
+    #[test]
+    fn next_gpu_mode_is_the_running_one_unless_switched() {
+        for running in [GpuMode::Hybrid, GpuMode::Discrete] {
+            // Nothing chosen since Windows started (the reported bug: Hybrid running, box on
+            // Discrete because the firmware read 2).
+            assert_eq!(next_gpu_mode(running, None), running);
+            // Chosen this session: shown until the restart, also when switched back.
+            assert_eq!(next_gpu_mode(running, Some(GpuMode::Hybrid as u8)), GpuMode::Hybrid);
+            assert_eq!(next_gpu_mode(running, Some(GpuMode::Discrete as u8)), GpuMode::Discrete);
+            // A value that is not a GPU mode is ignored.
+            for bad in [0, 3, u8::MAX] {
+                assert_eq!(next_gpu_mode(running, Some(bad)), running);
+            }
+        }
     }
 
     #[test]

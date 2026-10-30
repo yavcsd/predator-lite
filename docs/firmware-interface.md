@@ -88,7 +88,7 @@ take about 6 seconds to settle after a change.
 | Misc index | Meaning |
 |---|---|
 | 1 | Firmware turbo flag (0 / 1) |
-| 2 | GPU mode (MUX): 1 = Hybrid, 2 = Discrete. Applies at the next restart. |
+| 2 | GPU mode (MUX): 1 = Hybrid, 2 = Discrete. Applies at the next restart. On the PT515-51 it reads 2 after every start, whichever mode is running, so Predator Lite takes the running mode from the display adapters (Intel GPU present = Hybrid) and always writes this setting. |
 | 5 | GPU overclock level 0 / 1 / 2 (Normal / Faster / Turbo); reads back as `0x2L` |
 | 6 | Boot animation and sound (0 / 1) |
 | 7–16 | Invalid on the PT515-51. Other models use 7 = CPU overclock, 9/10 = GPU mode support, 0x0A/0x0B = platform profile, 0x0F = Fn lock. |

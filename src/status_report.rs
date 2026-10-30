@@ -3,10 +3,11 @@
 
 use crate::controller::{Backend, Capabilities, Controller};
 use crate::protocol::{
-    decode_fan_mode, fan_speed_id, format_sensor, kb_timeout_label, usb_charge_label, Method, MiscSetting,
-    COOLBOOST_GET, FAN_SLOTS, KB_TIMEOUT_GET, KB_ZONES, PROFILE_GET, USB_CHARGE_GET,
+    decode_fan_mode, fan_speed_id, format_sensor, kb_timeout_label, running_gpu_mode, usb_charge_label, GpuMode,
+    Method, MiscSetting, COOLBOOST_GET, FAN_SLOTS, KB_TIMEOUT_GET, KB_ZONES, PROFILE_GET, USB_CHARGE_GET,
 };
 use crate::settings::Settings;
+use crate::system::{display_adapter_ids, pending_gpu_mode};
 use std::fmt::Write;
 
 /// Raw output of a call as hex, or the error.
@@ -51,7 +52,13 @@ pub fn report<B: Backend>(hw: B) -> (String, B) {
         let _ = writeln!(out, "  fan speed id {id}: {:?}", raw_hex(hw, Method::GetGamingFanSpeed, id));
     }
     let _ = writeln!(out, "turbo: {}  LCD overdrive: {}", state.turbo, state.lcd_overdrive);
-    let _ = writeln!(out, "GPU mode (next start): {:?}", ctl.gpu_mode_setting());
+    let _ = writeln!(
+        out,
+        "GPU mode: running {:?}, chosen since Windows started {:?}, firmware value {:?}",
+        running_gpu_mode(&display_adapter_ids()),
+        pending_gpu_mode().and_then(GpuMode::from_u8),
+        ctl.gpu_mode_setting()
+    );
     let _ = writeln!(
         out,
         "CoolBoost: supported {}, on {}  (raw {:?})",
@@ -129,7 +136,7 @@ mod tests {
             "sensors (",
             "fan mode: CPU ",
             "turbo: ",
-            "GPU mode (next start): ",
+            "GPU mode: running ",
             "CoolBoost: supported ",
             "Win key: supported ",
             "boot animation: supported ",
@@ -157,7 +164,7 @@ mod tests {
         let (text, _) = checked_report(hw);
         assert!(text.contains("fan slots: 0b00000  zones: 0b0000"), "{text}");
         assert!(text.contains(" ms for 0):"), "{text}");
-        assert!(text.contains("GPU mode (next start): None"));
+        assert!(text.contains(", firmware value None"), "{text}");
         assert!(text.contains("CoolBoost: supported false, on false  (raw Err(Wmi(\"0x80041003\")))"), "{text}");
         assert!(text.contains("misc Turbo (1): Err("));
         assert!(text.contains("kb backlight(0): Err("));
@@ -171,7 +178,7 @@ mod tests {
         assert!(text.contains("fan slots: 0b00000"), "{text}");
         assert!(text.contains("  CPU: --"), "{text}");
         assert!(text.contains("  CPU fan: 0 RPM, 0%"), "{text}");
-        assert!(text.contains("GPU mode (next start): None"));
+        assert!(text.contains(", firmware value None"), "{text}");
         assert!(text.contains("zone 4: #000000"));
         assert!(!text.contains("  slot "));
         assert!(!text.contains("fan speed id"));

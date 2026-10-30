@@ -852,7 +852,9 @@ impl<B: Backend> Controller<B> {
         let _ = self.apply(part::FANS | part::GPU);
     }
 
-    /// GPU mode the firmware will use from the next start (may differ from the running one).
+    /// The firmware's GPU mode value, for `--status`. Not the mode for the next start: on the
+    /// PT515-51 it reads Discrete after every start, whichever mode is running (see
+    /// `protocol::next_gpu_mode`).
     pub fn gpu_mode_setting(&self) -> Option<GpuMode> {
         if !self.caps.gpu_mode {
             return None;
@@ -863,7 +865,8 @@ impl<B: Backend> Controller<B> {
     }
 
     /// Choose the GPU mode for the next start. Stored by the firmware itself, so it is not part
-    /// of `Settings` and never re-applied; written only when it differs.
+    /// of `Settings` and never re-applied. Always written, as PredatorSense's
+    /// `Set_System_GPUMode` does: the value read back can't be trusted to skip the write.
     ///
     /// # Errors
     /// `Error::NotPresent` without a GPU mode switch, or a firmware or WMI failure (`Error::Hw`,
@@ -872,7 +875,7 @@ impl<B: Backend> Controller<B> {
         if !self.caps.gpu_mode {
             return Err(Error::NotPresent("GPU mode switch"));
         }
-        self.set_misc(MiscSetting::GpuMode, m as u8, 0xFF)
+        exec(&self.hw, Method::SetGamingMiscSetting, misc_input(MiscSetting::GpuMode, m as u8)).map(drop)
     }
 
     /// The Turbo button makes the firmware flip its turbo flag (misc 1) and GPU level (misc 5)
@@ -1786,9 +1789,10 @@ mod tests {
     fn gpu_mode_read_and_switch() {
         let mut c = ctl();
         assert_eq!(c.gpu_mode_setting(), Some(GpuMode::Discrete));
-        // Already Discrete: nothing is written (the firmware dislikes redundant misc writes).
+        // Written even when the firmware already reads Discrete: on the PT515-51 it reads
+        // Discrete after every start, also while Hybrid runs and stays chosen.
         c.set_gpu_mode(GpuMode::Discrete).unwrap();
-        assert_eq!(c.hw.sets(), []);
+        assert_eq!(c.hw.sets(), vec![(SetGamingMiscSetting, 0x202)]);
         c.set_gpu_mode(GpuMode::Hybrid).unwrap();
         assert_eq!(c.hw.sets(), vec![(SetGamingMiscSetting, 0x102)]);
         assert_eq!(c.gpu_mode_setting(), Some(GpuMode::Hybrid));

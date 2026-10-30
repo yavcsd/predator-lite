@@ -14,13 +14,15 @@
 use crate::controller::{Capabilities, Controller, Error, TurboButton};
 use crate::eco_limits::WindowsEcoLimiter;
 use crate::protocol::{
-    decode_event, format_sensor, is_predator_key, kb_timeout_label, running_gpu_mode, usb_charge_label, Direction,
-    FanGroup, FanMode, GpuMode, GpuOc, HwEvent, KbBacklight, KbEffect, Rgb, Sensor, KB_BRIGHTNESS_STEP,
+    decode_event, format_sensor, is_predator_key, kb_timeout_label, next_gpu_mode, running_gpu_mode, usb_charge_label,
+    Direction, FanGroup, FanMode, GpuMode, GpuOc, HwEvent, KbBacklight, KbEffect, Rgb, Sensor, KB_BRIGHTNESS_STEP,
     KB_MAX_BRIGHTNESS, KB_MAX_SPEED, KB_TIMEOUTS, KB_ZONES, SCAN_LAUNCH_APP1, SCAN_PREDATOR_KEY, USB_CHARGE_FLOORS,
     VK_LAUNCH_APP1, VK_PREDATOR_KEY,
 };
 use crate::settings;
-use crate::system::{hidden_command, power_status, size_u32};
+use crate::system::{
+    display_adapter_ids, hidden_command, pending_gpu_mode, power_status, remember_pending_gpu_mode, size_u32,
+};
 use crate::wmi::{EventStream, Wmi};
 use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
@@ -28,11 +30,10 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::Graphics::Gdi::{
     CreateBitmap, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontIndirectW, CreateFontW, CreateSolidBrush,
-    DeleteDC, DeleteObject, DrawEdge, DrawFocusRect, DrawTextW, EnumDisplayDevicesW, FillRect, GetDC, GetSysColor,
-    GetSysColorBrush, InflateRect, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor,
-    ANTIALIASED_QUALITY, BF_ADJUST, BF_RECT, CLIP_DEFAULT_PRECIS, COLOR_BTNFACE, COLOR_GRAYTEXT, DEFAULT_CHARSET,
-    DISPLAY_DEVICEW, DT_CENTER, DT_SINGLELINE, DT_VCENTER, EDGE_RAISED, EDGE_SUNKEN, FW_HEAVY, HDC, HFONT,
-    OUT_DEFAULT_PRECIS, TRANSPARENT,
+    DeleteDC, DeleteObject, DrawEdge, DrawFocusRect, DrawTextW, FillRect, GetDC, GetSysColor, GetSysColorBrush,
+    InflateRect, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, ANTIALIASED_QUALITY, BF_ADJUST,
+    BF_RECT, CLIP_DEFAULT_PRECIS, COLOR_BTNFACE, COLOR_GRAYTEXT, DEFAULT_CHARSET, DT_CENTER, DT_SINGLELINE, DT_VCENTER,
+    EDGE_RAISED, EDGE_SUNKEN, FW_HEAVY, HDC, HFONT, OUT_DEFAULT_PRECIS, TRANSPARENT,
 };
 use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -185,7 +186,8 @@ struct App {
     predator_key_pressed_at: Option<std::time::Instant>,
     /// Opt-in diagnostics: `%APPDATA%\PredatorLite\debug` exists -> events go to debug.log.
     debug: Option<(std::fs::File, std::time::Instant)>,
-    /// GPU mode in use since boot, and the one the firmware will use from the next start.
+    /// GPU mode in use since boot, and the one the firmware will use from the next start (the
+    /// running one unless it was switched since Windows started; `None` without a GPU mode switch).
     gpu_mode_running: GpuMode,
     gpu_mode_next: Option<GpuMode>,
 }
@@ -247,20 +249,6 @@ fn fan_radio(id: i32) -> Option<(FanGroup, FanMode)> {
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, reason = "layout sizes are far below 2^23")]
 fn scale_px(v: i32, scale: f32) -> i32 {
     (v as f32 * scale).round() as i32
-}
-
-/// Hardware ids of the display adapters Windows currently has.
-fn display_adapter_ids() -> Vec<String> {
-    let mut ids = Vec::new();
-    for i in 0..16 {
-        let mut dd = DISPLAY_DEVICEW { cb: size_u32::<DISPLAY_DEVICEW>(), ..Default::default() };
-        if !unsafe { EnumDisplayDevicesW(PCWSTR::null(), i, &raw mut dd, 0) }.as_bool() {
-            break;
-        }
-        let n = dd.DeviceID.iter().position(|&c| c == 0).unwrap_or(dd.DeviceID.len());
-        ids.push(String::from_utf16_lossy(&dd.DeviceID[..n]));
-    }
-    ids
 }
 
 /// `debug.log` next to the settings, only when a file named `debug` exists there.
@@ -839,7 +827,13 @@ impl App {
             return;
         }
         let r = self.ctl.set_gpu_mode(m);
-        self.gpu_mode_next = self.ctl.gpu_mode_setting();
+        if r.is_ok() {
+            self.gpu_mode_next = Some(m);
+            // So the box still shows the switch if the app is restarted before Windows is.
+            if let Err(e) = remember_pending_gpu_mode(m as u8) {
+                self.debug_log(&format!("could not remember the GPU mode switch: {e}"));
+            }
+        }
         let msg = match (&r, answer == IDYES) {
             (Ok(()), true) => match restart_windows() {
                 Ok(()) => format!("GPU mode {}: restarting in 5 seconds", m.label()),
@@ -1546,7 +1540,10 @@ pub fn run(mode: StartMode) -> i32 {
             gpu_mode_next: None,
         }));
         let a = &mut *app;
-        a.gpu_mode_next = a.ctl.gpu_mode_setting();
+        // Not the firmware's value: it reads Discrete after every start on the PT515-51.
+        if a.ctl.caps.gpu_mode {
+            a.gpu_mode_next = Some(next_gpu_mode(a.gpu_mode_running, pending_gpu_mode()));
+        }
         a.build();
         a.sync();
         a.set_status(&startup_status);

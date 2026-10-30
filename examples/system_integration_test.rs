@@ -146,7 +146,7 @@ fn wmi_checks(r: &mut Report) {
     let state = ctl.read_state();
     r.check(true, &format!("read_state: fans {:?}, GPU OC {:?}, turbo {}", state.fan_mode, state.gpu_oc, state.turbo));
     r.check(!state.restore_kb_lighting, "read_state leaves the keyboard lighting alone");
-    r.line(&format!("  GPU mode for the next start: {:?}", ctl.gpu_mode_setting()));
+    r.line(&format!("  GPU mode firmware value: {:?}", ctl.gpu_mode_setting()));
 
     // Call latency, as the window's 2 s refresh sees it.
     let t0 = Instant::now();
